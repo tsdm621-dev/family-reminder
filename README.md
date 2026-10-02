@@ -1,61 +1,66 @@
 # ふたりの予定
 
-夫婦2人で同じ予定を共有する、iPhone向けのシンプルなリマインダーPWAです。ログイン画面やプッシュ通知はなく、初回起動時に裏側でSupabase Anonymous Authへ接続します。React + TypeScript + Vite、Supabase無料枠、GitHub Pagesのすべて無料の構成です。
+夫婦2人で同じ予定を共有する、iPhone向けのシンプルなリマインダーPWAです。画面上のログインやパスワード入力、プッシュ通知はありません。初回だけ2台のiPhoneを一時的な共有コードでペアリングし、その後は各端末のSupabase Anonymous Authセッションを使って自動接続します。
 
 ## できること
 
 - 日付・時刻・メモ付きの予定を追加、編集、削除
 - 完了／未完了をワンタップで切り替え
-- 今日、明日、今後の日付ごとに表示。完了済みは一目で分かる表示
-- Supabase Realtimeで、片方の端末での変更をもう片方へ自動反映
-- iPhoneのホーム画面に追加でき、オフライン時にはアプリ画面を起動可能（予定の更新には通信が必要）
+- 今日、明日、今後の日付ごとに表示
+- Supabase Realtimeで片方の端末の変更をもう片方へ反映
+- iPhoneのホーム画面に追加してアプリのように利用
+- 共有コードで登録した2台だけが同じ予定へアクセス
 
-## 初回セットアップ（初心者向け）
+## 初回セットアップ
 
 ### 1. Supabaseを用意する
 
-1. [Supabase](https://supabase.com/)で無料アカウントを作り、**New project** からご夫婦専用のプロジェクトを1つ作ります。
-2. 左メニューの **SQL Editor** → **New query** を開きます。
-3. このリポジトリの [`supabase/schema.sql`](supabase/schema.sql) を全部コピーして貼り、**Run** を押します。テーブル、RLS、Realtime設定が作られます。
-4. **Authentication** → **Providers** → **Anonymous Sign-Ins** を有効にします。これにより画面でログインせず利用できます。
-5. **Project Settings** → **API** で次の2つを控えます。
+1. Supabaseで無料プロジェクトを1つ作ります。
+2. **SQL Editor** → **New query** を開きます。
+3. このリポジトリの `supabase/schema.sql` を全部コピーして実行します。
+4. **Authentication** → **Providers** → **Anonymous Sign-Ins** を有効にします。
+5. **Project Settings** → **API** で次の2つを確認します。
    - Project URL
-   - Publishable key（表示がない場合は従来の `anon public` key）
+   - Publishable key（または従来の anon public key）
 
-> `service_role` キーは絶対に使わないでください。ブラウザ用のPublishable/anon keyは公開される前提のキーで、アクセス制御はSQLのRLSが担います。この構成では、そのSupabaseプロジェクトで匿名認証された利用者全員が同じデータを共有します。プロジェクトと公開URLは夫婦専用にし、第三者へURLを共有しないでください。
+> `service_role` キーは絶対にブラウザへ入れないでください。Publishable/anon keyは公開される前提のキーです。実際のデータ保護は、世帯メンバーだけを許可するRLSで行います。
 
-### 2. 手元で動かす
+### 2. GitHub Actionsへ接続情報を登録する
 
-Node.js 20以上をインストールして、以下を実行します。
+リポジトリの **Settings** → **Secrets and variables** → **Actions** で次のRepository secretを作ります。
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+値はSupabaseで確認したProject URLとPublishable/anon keyです。
+
+### 3. GitHub Pagesへ公開する
+
+`main` へpushするとGitHub ActionsがビルドしてPagesへ公開します。ワークフローはPages未有効のリポジトリでも有効化を試みる設定です。
+
+### 4. 2台をペアリングする
+
+1. 1台目のiPhoneで公開URLをSafariから開き、**このiPhoneから始める** を押します。
+2. 12文字の共有コードが表示されます。コードは15分間・1回だけ有効です。
+3. 2台目のiPhoneで同じ公開URLを開き、共有コードを入力します。
+4. 以後は2台が同じ「世帯」に所属し、その世帯の予定だけを読み書きできます。
+5. 必要なら画面右上の **ふたり** から新しい共有コードを発行できます。すでに2台接続済みの場合は追加できません。
+
+匿名セッションの保存データをSafariから消した場合、その端末は別ユーザーとして扱われます。その場合は、もう1台の端末から新しい共有コードを発行して再ペアリングしてください。
+
+### 5. ホーム画面へ追加する
+
+Safariで公開URLを開き、共有ボタン → **ホーム画面に追加** → **追加** を押します。2台とも同じ公開URLを追加します。
+
+## ローカル開発
 
 ```bash
 npm install
 cp .env.example .env.local
+npm run dev
 ```
 
-`.env.local` をテキストエディタで開き、手順1で控えた値に置き換えます。
-
-```env
-VITE_SUPABASE_URL=https://あなたのプロジェクトID.supabase.co
-VITE_SUPABASE_ANON_KEY=あなたのPublishableまたはanonキー
-```
-
-次に `npm run dev` を実行し、表示されたURLをブラウザで開きます。`.env.local` はGit管理対象外なので、秘密情報を誤ってコミットしません。
-
-### 3. GitHub Pagesへ自動公開する
-
-1. GitHubのリポジトリ画面で **Settings** → **Secrets and variables** → **Actions** を開きます。
-2. **New repository secret** から、`VITE_SUPABASE_URL` と `VITE_SUPABASE_ANON_KEY` の2つを登録します。
-3. **Settings** → **Pages** → **Build and deployment** のSourceで **GitHub Actions** を選びます。
-4. `main` ブランチへpushすると、自動でビルド・公開されます。進み具合は **Actions** タブで確認できます。
-5. 完了後、Pagesに表示されたURLを夫婦それぞれのiPhoneのSafariで開きます。
-
-### 4. iPhoneのホーム画面へ追加する
-
-1. 必ずSafariで公開URLを開きます。
-2. 画面下の共有ボタン（四角から上矢印）をタップします。
-3. **ホーム画面に追加** → **追加** をタップします。
-4. 以後はホーム画面の「ふたりの予定」アイコンから起動します。2台とも同じ公開URLを追加してください。
+`.env.local` にSupabaseのProject URLとPublishable/anon keyを設定します。
 
 ## 開発コマンド
 
@@ -66,9 +71,11 @@ VITE_SUPABASE_ANON_KEY=あなたのPublishableまたはanonキー
 | `npm run lint` | ESLintでコードを確認 |
 | `npm run preview` | ビルド結果をローカル確認 |
 
-## セキュリティと料金について
+## セキュリティ
 
-- URLやキーはコードに直接書かず、ローカルでは環境ファイル、GitHubではActions Secretsから渡します。
-- アプリに埋め込むPublishable/anon key自体は秘密鍵ではありません。データ操作はAnonymous AuthとRLSで制限しています。
-- SupabaseとGitHub Pagesの無料枠内なら料金はかかりません。無料枠の上限や休止条件は各サービスの最新案内もご確認ください。
-- 本アプリは通知を使用しません。期日はアプリを開いて確認してください。
+- 各予定は `household_id` に所属します。
+- RLSは現在の匿名ユーザーが所属する世帯の行だけを許可します。
+- 共有コードはDBへ平文保存せずハッシュ化し、15分で期限切れ、使用後は再利用不可です。
+- 1ユーザーは1世帯、1世帯は最大2ユーザーです。
+- URLやPublishable/anon keyを知っているだけでは既存の予定へアクセスできません。
+- 本アプリはプッシュ通知を使用しません。
