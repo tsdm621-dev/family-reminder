@@ -57,7 +57,7 @@ returns uuid
 language sql
 stable
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
   select hm.household_id
   from public.household_members hm
@@ -70,7 +70,7 @@ create or replace function public.create_household()
 returns uuid
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
 declare
   v_user uuid := auth.uid();
@@ -104,7 +104,7 @@ create or replace function public.create_pairing_code()
 returns text
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
 declare
   v_user uuid := auth.uid();
@@ -138,12 +138,12 @@ begin
     and used_at is null;
 
   loop
-    v_code := upper(substr(encode(public.gen_random_bytes(6), 'hex'), 1, 12));
+    v_code := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 12));
     begin
       insert into public.pairing_codes (household_id, code_hash, expires_at, created_by)
       values (
         v_household,
-        encode(public.digest(lower(v_code), 'sha256'), 'hex'),
+        encode(digest(lower(v_code), 'sha256'), 'hex'),
         now() + interval '15 minutes',
         v_user
       );
@@ -160,7 +160,7 @@ create or replace function public.join_household(p_code text)
 returns uuid
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
 declare
   v_user uuid := auth.uid();
@@ -183,7 +183,7 @@ begin
   end if;
 
   v_hash := encode(
-    public.digest(
+    digest(
       lower(regexp_replace(coalesce(p_code, ''), '[^a-zA-Z0-9]', '', 'g')),
       'sha256'
     ),
@@ -229,7 +229,7 @@ create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
 security invoker
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, extensions
 as $$
 begin
   new.updated_at = now();
