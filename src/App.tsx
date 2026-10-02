@@ -29,20 +29,21 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!supabase) return
+    const client = supabase
+    if (!client) return
     let active = true
     const connect = async () => {
-      const { data } = await supabase.auth.getSession()
+      const { data } = await client.auth.getSession()
       if (!data.session) {
-        const { error: authError } = await supabase.auth.signInAnonymously()
+        const { error: authError } = await client.auth.signInAnonymously()
         if (authError) { if (active) { setError('接続できませんでした。Supabaseの匿名ログイン設定をご確認ください。'); setLoading(false) }; return }
       }
       if (!active) return
       await load()
     }
     void connect()
-    const channel = supabase.channel('shared-reminders').on('postgres_changes', { event: '*', schema: 'public', table: 'reminders' }, () => void load()).subscribe()
-    return () => { active = false; void supabase.removeChannel(channel) }
+    const channel = client.channel('shared-reminders').on('postgres_changes', { event: '*', schema: 'public', table: 'reminders' }, () => void load()).subscribe()
+    return () => { active = false; void client.removeChannel(channel) }
   }, [load])
 
   const groups = useMemo(() => {
@@ -73,7 +74,7 @@ export default function App() {
     {error && <div className="error" role="alert">{error}<button onClick={() => void load()}>再読み込み</button></div>}
     <div className="toolbar"><h2>予定一覧</h2><label><input type="checkbox" checked={showCompleted} onChange={e => setShowCompleted(e.target.checked)} /> 完了済みも表示</label></div>
     {loading ? <div className="empty">読み込んでいます…</div> : Object.keys(groups).length === 0 ? <div className="empty"><span>✓</span><h3>予定はありません</h3><p>右下の＋から、ふたりの予定を追加しましょう。</p></div> :
-      Object.entries(groups).map(([date, reminders]) => <section className="day" key={date}><h3 className={date === today() ? 'today' : ''}>{dateLabel(date)} <small>{date.replaceAll('-', '.')}</small></h3><div className="cards">{reminders.map(item => <article className={`card ${item.is_completed ? 'completed' : ''}`} key={item.id}>
+      Object.entries(groups).map(([date, reminders]) => <section className="day" key={date}><h3 className={date === today() ? 'today' : ''}>{dateLabel(date)} <small>{date.split('-').join('.')}</small></h3><div className="cards">{reminders.map(item => <article className={`card ${item.is_completed ? 'completed' : ''}`} key={item.id}>
         <button className="check" onClick={() => void toggle(item)} aria-label={item.is_completed ? '未完了に戻す' : '完了にする'}>{item.is_completed ? '✓' : ''}</button>
         <button className="cardbody" onClick={() => openEdit(item)}><strong>{item.title}</strong>{(item.due_time || item.note) && <span>{item.due_time?.slice(0, 5)}{item.due_time && item.note ? ' ・ ' : ''}{item.note}</span>}</button><button className="chevron" onClick={() => openEdit(item)} aria-label="編集">›</button>
       </article>)}</div></section>)}
